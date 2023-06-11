@@ -28,6 +28,7 @@ async function run() {
       await client.connect();
       
       const classCollection = client.db("photoDB").collection("classes");
+      const cartCollection = client.db("photoDB").collection("carts");
 
 
       app.get('/classes', async (req, res) => {
@@ -35,6 +36,13 @@ async function run() {
           res.send(result)
       })
 
+
+    //   cart collection
+      app.post('/carts', async (req, res) => {
+          const item = req.body;
+          const result = await cartCollection.insertOne(item)
+          res.send(result)
+      })
 
 
 
