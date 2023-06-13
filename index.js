@@ -3,6 +3,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+// const SSLCommerzPayment = require("sslcommerz-lts");
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -11,25 +12,26 @@ app.use(cors());
 app.use(express.json());
 
 // varify jw token
-const verifyToken = (req, res, next) => {
-  const authorization = req.headers.authorization;
-  if (!authorization) {
-    return res.status(401).send({ error: true, message: "No token provided" });
-  }
 
-  // bearer token
-  const token = authorization.split(" ")[1];
+// const verifyToken = (req, res, next) => {
+//   const authorization = req.headers.authorization;
+//   if (!authorization) {
+//     return res.status(401).send({ error: true, message: "No token provided" });
+//   }
 
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
-      return res
-        .status(401)
-        .send({ error: true, message: "No token provided" });
-    }
-    req.user = decoded;
-    next();
-  });
-};
+//   // bearer token
+//   const token = authorization.split(" ")[1];
+
+//   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+//     if (err) {
+//       return res
+//         .status(401)
+//         .send({ error: true, message: "No token provided" });
+//     }
+//     req.user = decoded;
+//     next();
+//   });
+// };
 
 
 // mongodb connection
@@ -43,6 +45,13 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+// sslcommerze payment gateways
+// const store_id = process.env.SOTRE_ID;
+// const store_passwd = process.env.STORE_PASS;
+// const is_live = false
+
+
 
 async function run() {
   try {
@@ -109,6 +118,12 @@ async function run() {
       const result = await classCollection.find().toArray();
       res.send(result);
     });
+
+    app.post('/classes', async (req, res) => {
+      const item = req.body;
+      const result = await classCollection.insertOne(item);
+      res.send(result);
+    })
 
     //   cart collection
     app.get("/carts", async (req, res) => {
