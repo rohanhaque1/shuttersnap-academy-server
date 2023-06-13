@@ -61,6 +61,7 @@ async function run() {
     const usersCollection = client.db("photoDB").collection("users");
     const classCollection = client.db("photoDB").collection("classes");
     const cartCollection = client.db("photoDB").collection("carts");
+    const myclassCollection = client.db("photoDB").collection("myclass");
 
     // JW Token
     app.post("/jwt", (req, res) => {
@@ -119,11 +120,41 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/classes', async (req, res) => {
-      const item = req.body;
-      const result = await classCollection.insertOne(item);
+    // myclass collection
+    app.get('/myclass', async (req, res) => {
+      const result = await myclassCollection.find().toArray();
       res.send(result);
     })
+
+    app.post('/myclass', async (req, res) => {
+      const item = req.body;
+      const result = await myclassCollection.insertOne(item);
+      res.send(result);
+    })
+
+    app.patch("/myclass/approve/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateClass = {
+        $set: {
+          status: "approved",
+        },
+      };
+      const result = await myclassCollection.updateOne(filter, updateClass);
+      res.send(result);
+    });
+
+    app.patch("/myclass/deny/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateClass = {
+        $set: {
+          status: "denyed",
+        },
+      };
+      const result = await myclassCollection.updateOne(filter, updateClass);
+      res.send(result);
+    });
 
     //   cart collection
     app.get("/carts", async (req, res) => {
