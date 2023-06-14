@@ -13,26 +13,26 @@ app.use(express.json());
 
 // varify jw token
 
-// const verifyToken = (req, res, next) => {
-//   const authorization = req.headers.authorization;
-//   if (!authorization) {
-//     return res.status(401).send({ error: true, message: "No token provided" });
-//   }
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: "unauthorized access" });
+  }
+  // bearer token
+  const token = authorization.split(" ")[1];
 
-//   // bearer token
-//   const token = authorization.split(" ")[1];
-
-//   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-//     if (err) {
-//       return res
-//         .status(401)
-//         .send({ error: true, message: "No token provided" });
-//     }
-//     req.user = decoded;
-//     next();
-//   });
-// };
-
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
 
 // mongodb connection
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.7kcf4qx.mongodb.net/?retryWrites=true&w=majority`;
@@ -50,8 +50,6 @@ const client = new MongoClient(uri, {
 // const store_id = process.env.SOTRE_ID;
 // const store_passwd = process.env.STORE_PASS;
 // const is_live = false
-
-
 
 async function run() {
   try {
@@ -72,6 +70,31 @@ async function run() {
       res.send({ token });
     });
 
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+    // verify instructor
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "instructor") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
     // Users collection
 
     app.get("/users", async (req, res) => {
@@ -87,6 +110,32 @@ async function run() {
         return res.send({ message: "user already exist" });
       }
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === "admin" };
+      res.send(result);
+    });
+
+    app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { instructor: user?.role === "instructor" };
       res.send(result);
     });
 
@@ -121,16 +170,22 @@ async function run() {
     });
 
     // myclass collection
-    app.get('/myclass', async (req, res) => {
+    app.get("/myclass", async (req, res) => {
       const result = await myclassCollection.find().toArray();
       res.send(result);
-    })
+    });
 
-    app.post('/myclass', async (req, res) => {
-      const item = req.body;
-      const result = await myclassCollection.insertOne(item);
-      res.send(result);
-    })
+    app.post(
+      "/myclass",
+      verifyJWT,
+      verifyAdmin,
+      verifyInstructor,
+      async (req, res) => {
+        const item = req.body;
+        const result = await myclassCollection.insertOne(item);
+        res.send(result);
+      }
+    );
 
     app.patch("/myclass/approve/:id", async (req, res) => {
       const id = req.params.id;
@@ -167,13 +222,19 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/carts", async (req, res) => {
-      const item = req.body;
-      const result = await cartCollection.insertOne(item);
-      res.send(result);
-    });
+    app.post(
+      "/carts",
+      verifyJWT,
+      verifyAdmin,
+      verifyInstructor,
+      async (req, res) => {
+        const item = req.body;
+        const result = await cartCollection.insertOne(item);
+        res.send(result);
+      }
+    );
 
-    app.delete("/carts/:id", async (req, res) => {
+    app.delete("/carts/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await cartCollection.deleteOne(query);
